@@ -41,16 +41,17 @@ def geolocate(geo):
                                 lat_long_str += ";"
                                 print("\nLocation Found: " + address[0].raw['display_name'])
                             else:
-                                print("\nFor " + location + ": Which location is best?")
+                                print("\nFor " + location + ", which location is best?")
+                                print(str(0) + ": " + "Do not include location")
                                 for i in range(len(address)):
-                                    print(str(i + 1) + ": " + address[i].raw['display_name'] + ", " + address[i].raw['lat'] + '/' + address[i].raw['lon'])
-                                print(str(len(address) + 1) + ": " + "Do not include location")
+                                    print(address[i].raw)
+                                    print(str(i + 1) + ": " + address[i].raw['importance'] + ", " + address[i].raw['display_name'] + ", " + address[i].raw['lat'] + '/' + address[i].raw['lon'])
                                 confirmation = input("Please choose an option: ")
-                                if confirmation != str(len(address) + 1):
+                                if confirmation != str(0):
                                     lat_long_str += str(address[int(confirmation) - 1].raw['lat']) + '/' + str(address[int(confirmation) - 1].raw['lon'])
                                     lat_long_str += ";"
-                        
 
+    print("\nLocations Added! Please check the output file")
     lat_long_str = lat_long_str[:-1]
     values_dict = {'Latitude/Longitude': lat_long_str}
     return values_dict
