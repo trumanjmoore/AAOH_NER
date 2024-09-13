@@ -11,6 +11,7 @@ def geolocate(geo):
 
     rows = []
     bounding_box = [34, -102, 25, -80]
+    importance_benchmark = .5
 
     with (open(".\\Output\\location_output.csv", 'r') as csvfile):
         csvreader = csv.reader(csvfile)
@@ -36,20 +37,31 @@ def geolocate(geo):
                     if address is not None and address[0].raw['addresstype'] != "state":
                         if str(address[0].raw['lat']) + '/' + str(address[0].raw['lon']) not in address_set:
                             address_set.add(str(address[0].raw['lat']) + '/' + str(address[0].raw['lon']))
-                            if check_bounds(bounding_box, float(address[0].raw['lat']), float(address[0].raw['lon'])):
-                                lat_long_str += str(address[0].raw['lat']) + '/' + str(address[0].raw['lon'])
-                                lat_long_str += ";"
-                                print("\nLocation Found: " + address[0].raw['display_name'])
-                            else:
-                                print("\nFor " + location + ", which location is best?")
-                                print(str(0) + ": " + "Do not include location")
-                                for i in range(len(address)):
-                                    print(address[i].raw)
-                                    print(str(i + 1) + ": " + address[i].raw['importance'] + ", " + address[i].raw['display_name'] + ", " + address[i].raw['lat'] + '/' + address[i].raw['lon'])
-                                confirmation = input("Please choose an option: ")
-                                if confirmation != str(0):
-                                    lat_long_str += str(address[int(confirmation) - 1].raw['lat']) + '/' + str(address[int(confirmation) - 1].raw['lon'])
-                                    lat_long_str += ";"
+                            if float(address[0].raw['importance']) >= importance_benchmark:
+                                if check_bounds(bounding_box, float(address[0].raw['lat']), float(address[0].raw['lon'])):
+                                    lat_long_str = add_location(str(address[0].raw['lat']), str(address[0].raw['lon']), lat_long_str)
+                                    print("\nLocation Found: " + address[0].raw['display_name'])
+
+                                else:
+                                    print("\nFor " + location + ", which location is best?")
+                                    print(str(0) + ": " + "Do not include location")
+                                    for i in range(len(address)):
+                                        print(str(i + 1) + ": " + address[i].raw['display_name'] + ", " +
+                                              str(address[i].raw['importance']) + ", " + address[i].raw['lat'] + '/' + address[i].raw['lon'])
+
+                                    while True:
+                                        try:
+                                            confirmation = int(input("Please choose an option: "))
+                                            if confirmation < 0 or confirmation > len(address):
+                                                raise ValueError
+                                            else:
+                                                if confirmation != str(0):
+                                                    lat_long_str = add_location(str(address[int(confirmation) - 1].raw['lat']),
+                                                                 str(address[int(confirmation) - 1].raw['lat']), lat_long_str)
+                                                break
+
+                                        except ValueError:
+                                            print("Please choose a valid option")
 
     print("\nLocations Added! Please check the output file")
     lat_long_str = lat_long_str[:-1]
@@ -64,6 +76,12 @@ def check_bounds(bounds, lat, lon):
                 return True
     else:
         return False
+
+
+def add_location(address_lat, address_lon, latlong_str):
+    latlong_str += address_lat + '/' + address_lon
+    latlong_str += ";"
+    return latlong_str
 
 
 def get_item_values(values_dict):
