@@ -1,9 +1,168 @@
+import tkinter
+from tkinter import Frame
+from tkinter import Text
+from tkinter import Entry
+from tkinter import WORD
+from tkinter import INSERT
+from tkinter import END
+from tkinter import StringVar
+from tkinter import Button
+from tkinter import Label
+from threading import Thread
+import glob
 from geopy.geocoders import Nominatim
 import csv
 import subprocess
-import glob
 
-def geolocate(geo):
+
+class Window:
+    def __init__(self, key):
+        self.window = tkinter.Tk()
+        self.window.title('AAOH')
+        self.window.attributes('-topmost', True)
+
+        self.matches = 0
+        self.counter = 1
+
+        self.found_words = []
+
+        screen_width = self.window.winfo_screenwidth()
+        screen_height = self.window.winfo_screenheight()
+        self.window.geometry(f"{int(screen_width * .75)}x{int(screen_height * .75)}+{0}+{0}")
+        self.window.resizable(False, False)
+
+        main_frame = Frame(self.window)
+        main_frame.grid(column=0, row=0, sticky="nswe")
+
+        right_frame = Frame(main_frame)
+        right_frame.grid(column=1, row=0, sticky="nswe")
+
+        left_frame = Frame(main_frame)
+        left_frame.grid(column=0, row=0, sticky="nswe")
+
+        left_frame_top = Frame(left_frame)
+        left_frame_top.grid(column=0, row=0, sticky="nswe")
+
+        left_frame_bot = Frame(left_frame)
+        left_frame_bot.grid(column=0, row=1, sticky="nswe")
+
+        search_button = Button(left_frame_top, height=1, width=10, text="Search",  command=self.find_text)
+        search_button.grid(row=0, column=0)
+
+        self.search_field = Entry(left_frame_top)
+        self.search_field.grid(row=0, column=1, sticky="nswe")
+
+        next_button = Button(left_frame_top, height=1, width=5, text="Next", command=self.find_next)
+        next_button.grid(row=0, column=2)
+
+        prev_button = Button(left_frame_top, height=1, width=5, text="Prev", command=self.find_prev)
+        prev_button.grid(row=0, column=3)
+
+        self.matches_label = Label(left_frame_top)
+        self.matches_label.grid(row=0, column=4)
+
+        self.interview_text = Text(left_frame_bot, wrap=WORD, width=int(screen_width / 20), height=int(screen_height /22))
+        filelist = glob.glob("Input\\*.txt")
+        for file in filelist:
+            with open(file, 'r', encoding='utf-8') as f:
+                self.interview_text.insert(INSERT, f.read())
+        self.interview_text.grid(row=0, column=0, sticky="nswe")
+
+        output_text = Text(right_frame, width=int(screen_width / 23), height=int(screen_height / 27))
+        output_text.grid(row=0, column=0)
+
+        input_text = Text(right_frame, width=int(screen_width / 23), height=int(screen_height / 135), background="light blue")
+        input_text.grid(row=1, column=0)
+
+        i = 0
+        self.button_pressed = StringVar()
+        confirm_button = Button(right_frame, height=2, width=20, text="Confirm", command= lambda: self.button_pressed.set(str(++i)))
+        confirm_button.grid(row=2, column=0, sticky="nswe")
+
+        self.window.bind('<Return>', self.take_input(i))
+
+        # get location addresses
+        t1 = Thread(target=geolocate, daemon=True, args=(key, output_text, input_text, confirm_button, self.button_pressed))
+        t1.start()
+
+    def run_mainloop(self):
+        self.window.protocol("WM_DELETE_WINDOW", self.on_closing)
+        self.window.mainloop()
+
+    def take_input(self, i):
+        self.button_pressed.set(str(++i))
+
+    def on_closing(self):
+        self.button_pressed.set(str(-1))
+        self.window.destroy()
+
+    def find_text(self):
+        text = self.search_field.get()
+        start = '1.0'
+        self.matches = 0
+        self.counter = 1
+        if text:
+            self.clear_tags()
+            while 1:
+                start = self.interview_text.search(text, start, regexp=True, nocase=True, stopindex=END)
+                if not start: break
+                last = '%s+%dc' % (start, len(text))
+                self.interview_text.tag_add('found', start, last)
+                self.found_words.append((start, last))
+                self.matches += 1
+                start = last
+                self.interview_text.tag_config('found', background='light blue')
+                self.interview_text.tag_config('next', background='dodger blue')
+        if self.matches == 0:
+            self.matches_label.config(text="No matches found")
+        else:
+            self.matches_label.config(text=f"1 of {str(self.matches)}")
+            self.interview_text.tag_remove('found', self.found_words[0][0], self.found_words[0][1])
+            self.interview_text.tag_add('next', self.found_words[0][0], self.found_words[0][1])
+            self.interview_text.see(self.found_words[0][0])
+
+    def find_next(self):
+        if self.matches != 0:
+            self.add_found_tags()
+            if self.counter == len(self.found_words):
+                self.counter = 1
+            else:
+                self.counter += 1
+            self.add_next_tags()
+            self.matches_label.config(text=f"{self.counter} of {str(self.matches)}")
+            self.interview_text.see(self.found_words[self.counter-1][0])
+
+    def find_prev(self):
+        if self.matches != 0:
+            self.add_found_tags()
+            if self.counter == 1:
+                self.counter = len(self.found_words)
+            else:
+                self.counter -= 1
+            self.add_next_tags()
+            self.matches_label.config(text=f"{self.counter} of {str(self.matches)}")
+            self.interview_text.see(self.found_words[self.counter-1][0])
+
+    def add_found_tags(self):
+        self.interview_text.tag_remove('next', self.found_words[self.counter - 1][0],
+                                       self.found_words[self.counter - 1][1])
+        self.interview_text.tag_add('found', self.found_words[self.counter - 1][0],
+                                    self.found_words[self.counter - 1][1])
+
+    def add_next_tags(self):
+        self.interview_text.tag_remove('found', self.found_words[self.counter - 1][0],
+                                       self.found_words[self.counter - 1][1])
+        self.interview_text.tag_add('next', self.found_words[self.counter - 1][0],
+                                    self.found_words[self.counter - 1][1])
+
+    def clear_tags(self):
+        for tag in self.found_words:
+            self.interview_text.tag_remove("found", tag[0], tag[1])
+            self.interview_text.tag_remove("next", tag[0], tag[1])
+        self.found_words.clear()
+
+
+def geolocate(geo, output, input_text, confirm_button, button_pressed):
     locations_set = set([]) #collection of location names already seen, tries to limit the amount of times the geocoder has to run
     address_set = set([]) #collecetion of lat/lon address already seen, sometimes the same location might go by different names
     lat_long_str = "" #string of all geographical addresses of locations added
@@ -32,7 +191,7 @@ def geolocate(geo):
                                               country_codes='US',
                                               featuretype='settlement')  # gets location address information
                     except:
-                        print("Couldn't find address for: " + location)
+                        output.insert(END, "Couldn't find address for: " + location + "\n")
 
                     if address is not None and address[0].raw['addresstype'] != "state":  # leaves out states
                         if str(address[0].raw['lat']) + '/' + str(address[0].raw['lon']) not in address_set:  # checks if this address has already been seen
@@ -40,33 +199,50 @@ def geolocate(geo):
                             if float(address[0].raw['importance']) >= importance_benchmark:  # checks importance level against benchmark
                                 if check_bounds(bounding_box, float(address[0].raw['lat']), float(address[0].raw['lon'])):  # check if the location is in the gulf south
                                     lat_long_str = add_location(str(address[0].raw['lat']), str(address[0].raw['lon']), lat_long_str)  # if so, then add the location automatically
-                                    print("\nLocation Found: " + address[0].raw['display_name'])
+                                    output.insert(END, "\nLocation Found: " + address[0].raw['display_name'] + "\n")
+                                    output.see("end")
 
                                 else:  # if location is not in gulf south, look for user confirmation
-                                    print("\nFor " + location + ", which location is best?")
-                                    print(str(0) + ": " + "Do not include location")
+                                    output.insert(END, "\nFor " + location + ", which location is best?" + "\n")
+                                    output.insert(END, str(0) + ": " + "Do not include location" + "\n")
                                     for i in range(len(address)):
-                                        print(str(i + 1) + ": " + address[i].raw['display_name'] + ", " +
-                                              str(address[i].raw['importance']) + ", " + address[i].raw['lat'] + '/' + address[i].raw['lon'])
+                                        output.insert(END, str(i + 1) + ": " + address[i].raw['display_name'] + "\n")
+                                    output.insert(END, "Please choose an option: " + "\n")
+                                    output.see("end")
 
                                     while True: #asks for user input
-                                        try:
-                                            confirmation = int(input("Please choose an option: "))
-                                            if confirmation < 0 or confirmation > len(address):
-                                                raise ValueError
-                                            else:
-                                                if confirmation != str(0):
-                                                    lat_long_str = add_location(str(address[int(confirmation) - 1].raw['lat']),
-                                                                 str(address[int(confirmation) - 1].raw['lon']), lat_long_str)  # adds the location the user chose
-                                                break
+                                        confirm_button.wait_variable(button_pressed)
+                                        if button_pressed.get() == "-1":
+                                            exit()
+                                        confirmation = input_text.get("1.0", END)
+                                        input_text.delete('1.0', END)
+                                        if(confirmation != ""):
+                                            try:
+                                                confirmation = int(confirmation)
+                                                if confirmation < 0 or confirmation > len(address):
+                                                    raise ValueError
+                                                else:
+                                                    if confirmation != 0:
+                                                        output.insert(END, f"Location {confirmation} added" + "\n")
+                                                        lat_long_str = add_location(str(address[confirmation - 1].raw['lat']),
+                                                                     str(address[confirmation - 1].raw['lon']), lat_long_str)  # adds the location the user chose
+                                                    else:
+                                                        output.insert(END, "Location ignored" + "\n")
+                                                    break
 
-                                        except ValueError:
-                                            print("Please choose a valid option")
+                                            except ValueError:
+                                                output.insert(END, "Please choose a valid option" + "\n")
 
-    print("\nLocations Added! Please check the output file")
+                                            output.see("end")
+                                        else:
+                                            continue
+
+    output.insert(END, "\nLocations Added! Please check the output file")
+    output.see("end")
     lat_long_str = lat_long_str[:-1]
     values_dict = {'Latitude/Longitude': lat_long_str}  # location string added to the dict that defines the csv output
-    return values_dict
+    # gets item description values for omeka
+    get_item_values(values_dict)
 
 
 def check_bounds(bounds, lat, lon):
@@ -88,7 +264,7 @@ def add_location(address_lat, address_lon, latlong_str):
 
 def get_item_values(values_dict):
     # reads the interview transcript to fill the item values for csv import
-    filelist = glob.glob("../Input\\*.txt")
+    filelist = glob.glob("Input\\*.txt")
     for file in filelist:
         reading = open(file, 'r', errors="ignore")
         while True:
@@ -101,15 +277,16 @@ def get_item_values(values_dict):
                 elif content.split()[0] == "Abstract:":
                     values_dict['Description'] = content.strip()
                 elif content.split()[0] == "Keywords:":
-                    values_dict['Keywords'] = content.strip()
+                    values_dict['Table of Contents'] = content.strip()
                 elif content.split()[0] == "For":
                     break
-    return values_dict
+        # writes output to the csv file
+        write_to_file(values_dict)
 
 
 def write_to_file(values_dict):
     # writes the dict values to the csv for csv import to read, and assign item values
-    fields = ["Title", "Description", "Keywords", "interviewer", "Latitude/Longitude"]
+    fields = ["Title", "Description", "Table of Contents", "interviewer", "Latitude/Longitude"]
 
     with open("Output/location_output.csv", 'w', newline='') as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=fields)
@@ -121,14 +298,9 @@ if __name__ == '__main__':
     # runs the NER
     subprocess.call(['java', '-jar', 'stanford-ner.jar'])
 
-    #Enter into Nominatim
+    # Enter into Nominatim
     geolocator = Nominatim(user_agent="AAHP")
 
-    # get location addresses
-    value_dict = geolocate(geolocator)
+    main_window = Window(geolocator)
 
-    # gets item description values for omeka
-    value_dict = get_item_values(value_dict)
-
-    # writes output to the csv file
-    write_to_file(value_dict)
+    main_window.run_mainloop()
