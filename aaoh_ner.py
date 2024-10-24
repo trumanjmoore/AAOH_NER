@@ -16,14 +16,17 @@ import subprocess
 
 
 class Window:
+    # create confirmation window
     def __init__(self, key):
         self.window = tkinter.Tk()
         self.window.title('AAOH')
+        self.window.lift()
         self.window.attributes('-topmost', True)
+        self.window.after_idle(self.window.attributes, '-topmost', False)
 
+        # used for the search function
         self.matches = 0
         self.counter = 1
-
         self.found_words = []
 
         screen_width = self.window.winfo_screenwidth()
@@ -31,6 +34,7 @@ class Window:
         self.window.geometry(f"{int(screen_width * .75)}x{int(screen_height * .75)}+{0}+{0}")
         self.window.resizable(False, False)
 
+        # left frame holds transcript, right frame has confirmation screen
         main_frame = Frame(self.window)
         main_frame.grid(column=0, row=0, sticky="nswe")
 
@@ -46,6 +50,7 @@ class Window:
         left_frame_bot = Frame(left_frame)
         left_frame_bot.grid(column=0, row=1, sticky="nswe")
 
+        # for searching through the transcript
         search_button = Button(left_frame_top, height=1, width=10, text="Search",  command=self.find_text)
         search_button.grid(row=0, column=0)
 
@@ -61,6 +66,7 @@ class Window:
         self.matches_label = Label(left_frame_top)
         self.matches_label.grid(row=0, column=4)
 
+        # interview transcript
         self.interview_text = Text(left_frame_bot, wrap=WORD, width=int(screen_width / 20), height=int(screen_height /22))
         filelist = glob.glob("Input\\*.txt")
         for file in filelist:
@@ -68,9 +74,11 @@ class Window:
                 self.interview_text.insert(INSERT, f.read())
         self.interview_text.grid(row=0, column=0, sticky="nswe")
 
+        # confirmation request
         output_text = Text(right_frame, width=int(screen_width / 23), height=int(screen_height / 27))
         output_text.grid(row=0, column=0)
 
+        # user confirmation
         input_text = Text(right_frame, width=int(screen_width / 23), height=int(screen_height / 135), background="light blue")
         input_text.grid(row=1, column=0)
 
@@ -81,11 +89,12 @@ class Window:
 
         self.window.bind('<Return>', self.take_input(i))
 
-        # get location addresses
+        # get location addresses, thread so the user can still interact with the transcript frame
         t1 = Thread(target=geolocate, daemon=True, args=(key, output_text, input_text, confirm_button, self.button_pressed))
         t1.start()
 
     def run_mainloop(self):
+        # run the windows mainloop
         self.window.protocol("WM_DELETE_WINDOW", self.on_closing)
         self.window.mainloop()
 
@@ -93,10 +102,12 @@ class Window:
         self.button_pressed.set(str(++i))
 
     def on_closing(self):
+        # stops the user input field from looking for input
         self.button_pressed.set(str(-1))
         self.window.destroy()
 
     def find_text(self):
+        # when user searches through the transcript
         text = self.search_field.get()
         start = '1.0'
         self.matches = 0
@@ -163,9 +174,9 @@ class Window:
 
 
 def geolocate(geo, output, input_text, confirm_button, button_pressed):
-    locations_set = set([]) #collection of location names already seen, tries to limit the amount of times the geocoder has to run
-    address_set = set([]) #collecetion of lat/lon address already seen, sometimes the same location might go by different names
-    lat_long_str = "" #string of all geographical addresses of locations added
+    locations_set = set([])  # collection of location names already seen, tries to limit the amount of times the geocoder has to run
+    address_set = set([])  # collecetion of lat/lon address already seen, sometimes the same location might go by different names
+    lat_long_str = ""  # string of all geographical addresses of locations added
 
     rows = []
     bounding_box = [34, -102, 25, -80]  # bounding box for determining if a location needs user confirmation
