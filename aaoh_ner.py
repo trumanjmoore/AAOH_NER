@@ -312,6 +312,6 @@ if __name__ == '__main__':
     # Enter into Nominatim
     geolocator = Nominatim(user_agent="AAHP")
 
+    # create the confirmation window
     main_window = Window(geolocator)
-
     main_window.run_mainloop()
