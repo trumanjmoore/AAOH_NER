@@ -307,7 +307,7 @@ def write_to_file(values_dict):
 
 if __name__ == '__main__':
     # runs the NER
-    subprocess.call(['java', '-jar', 'stanford-ner.jar'])
+    subprocess.call(['javaw', '-jar', 'stanford_ner//stanford-ner.jar'])
 
     # Enter into Nominatim
     geolocator = Nominatim(user_agent="AAHP")
