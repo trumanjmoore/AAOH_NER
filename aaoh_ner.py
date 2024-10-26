@@ -51,7 +51,7 @@ class Window:
         left_frame_bot.grid(column=0, row=1, sticky="nswe")
 
         # for searching through the transcript
-        search_button = Button(left_frame_top, height=1, width=10, text="Search",  command=self.find_text)
+        search_button = Button(left_frame_top, height=1, width=10, text="Search", command=self.find_text)
         search_button.grid(row=0, column=0)
 
         self.search_field = Entry(left_frame_top)
@@ -67,7 +67,7 @@ class Window:
         self.matches_label.grid(row=0, column=4)
 
         # interview transcript
-        self.interview_text = Text(left_frame_bot, wrap=WORD, width=int(screen_width / 20), height=int(screen_height /22))
+        self.interview_text = Text(left_frame_bot, wrap=WORD, width=int(screen_width / 20), height=int(screen_height / 22))
         filelist = glob.glob("Input\\*.txt")
         for file in filelist:
             with open(file, 'r', encoding='utf-8') as f:
@@ -79,18 +79,21 @@ class Window:
         output_text.grid(row=0, column=0)
 
         # user confirmation
-        input_text = Text(right_frame, width=int(screen_width / 23), height=int(screen_height / 135), background="light blue")
+        input_text = Text(right_frame, width=int(screen_width / 23), height=int(screen_height / 135),
+                          background="light blue")
         input_text.grid(row=1, column=0)
 
         i = 0
         self.button_pressed = StringVar()
-        confirm_button = Button(right_frame, height=2, width=20, text="Confirm", command= lambda: self.button_pressed.set(str(++i)))
+        confirm_button = Button(right_frame, height=2, width=20, text="Confirm",
+                                command=lambda: self.button_pressed.set(str(++i)))
         confirm_button.grid(row=2, column=0, sticky="nswe")
 
         self.window.bind('<Return>', self.take_input(i))
 
         # get location addresses, thread so the user can still interact with the transcript frame
-        t1 = Thread(target=geolocate, daemon=True, args=(key, output_text, input_text, confirm_button, self.button_pressed))
+        t1 = Thread(target=geolocate, daemon=True,
+                    args=(key, output_text, input_text, confirm_button, self.button_pressed))
         t1.start()
 
     def run_mainloop(self):
@@ -141,7 +144,7 @@ class Window:
                 self.counter += 1
             self.add_next_tags()
             self.matches_label.config(text=f"{self.counter} of {str(self.matches)}")
-            self.interview_text.see(self.found_words[self.counter-1][0])
+            self.interview_text.see(self.found_words[self.counter - 1][0])
 
     def find_prev(self):
         if self.matches != 0:
@@ -152,7 +155,7 @@ class Window:
                 self.counter -= 1
             self.add_next_tags()
             self.matches_label.config(text=f"{self.counter} of {str(self.matches)}")
-            self.interview_text.see(self.found_words[self.counter-1][0])
+            self.interview_text.see(self.found_words[self.counter - 1][0])
 
     def add_found_tags(self):
         self.interview_text.tag_remove('next', self.found_words[self.counter - 1][0],
@@ -178,75 +181,77 @@ def geolocate(geo, output, input_text, confirm_button, button_pressed):
     address_set = set([])  # collecetion of lat/lon address already seen, sometimes the same location might go by different names
     lat_long_str = ""  # string of all geographical addresses of locations added
 
-    rows = []
     bounding_box = [34, -102, 25, -80]  # bounding box for determining if a location needs user confirmation
     importance_benchmark = .5  # importance level to determine if the location is worth adding
 
-    # reads the locations names that the NER put in the csv file
-    with (open("Output/location_output.csv", 'r') as csvfile):
-        csvreader = csv.reader(csvfile)
+    rows = get_locations()
 
-        for row in csvreader:
-            rows.append(row)
-
-        for row in rows:
-            for col in row:
+    for row in rows:
+        for col in row:
+            if ("%10s" % col).strip() not in locations_set:
                 location = ("%10s" % col).strip()
-                if location not in locations_set:
-                    locations_set.add(location)
-                    try:
-                        address = geo.geocode(query=location,
-                                              exactly_one=False,
-                                              limit=5,
-                                              addressdetails=True,
-                                              country_codes='US',
-                                              featuretype='settlement')  # gets location address information
-                    except:
-                        output.insert(END, "Couldn't find address for: " + location + "\n")
+                locations_set.add(location)
+            else:
+                continue
 
-                    if address is not None and address[0].raw['addresstype'] != "state":  # leaves out states
-                        if str(address[0].raw['lat']) + '/' + str(address[0].raw['lon']) not in address_set:  # checks if this address has already been seen
-                            address_set.add(str(address[0].raw['lat']) + '/' + str(address[0].raw['lon']))  # if not add the address
-                            if float(address[0].raw['importance']) >= importance_benchmark:  # checks importance level against benchmark
-                                if check_bounds(bounding_box, float(address[0].raw['lat']), float(address[0].raw['lon'])):  # check if the location is in the gulf south
-                                    lat_long_str = add_location(str(address[0].raw['lat']), str(address[0].raw['lon']), lat_long_str)  # if so, then add the location automatically
-                                    output.insert(END, "\nLocation Found: " + address[0].raw['display_name'] + "\n")
-                                    output.see("end")
+            try:
+                address = geo.geocode(query=location, exactly_one=False, limit=5, addressdetails=True,
+                                      country_codes='US', featuretype='settlement')  # gets location address information
+            except:
+                output.insert(END, "Couldn't find address for: " + location + "\n")
+                continue
 
-                                else:  # if location is not in gulf south, look for user confirmation
-                                    output.insert(END, "\nFor " + location + ", which location is best?" + "\n")
-                                    output.insert(END, str(0) + ": " + "Do not include location" + "\n")
-                                    for i in range(len(address)):
-                                        output.insert(END, str(i + 1) + ": " + address[i].raw['display_name'] + "\n")
-                                    output.insert(END, "Please choose an option: " + "\n")
-                                    output.see("end")
+            if address is None:
+                continue
+            if address[0].raw['addresstype'] == "state":
+                continue  # leaves out states
+            if str(address[0].raw['lat']) + '/' + str(address[0].raw['lon']) not in address_set:
+                address_set.add(str(address[0].raw['lat']) + '/' + str(address[0].raw['lon']))
+            else:
+                continue  # checks if this address has already been seen, if not add the address
 
-                                    while True: #asks for user input
-                                        confirm_button.wait_variable(button_pressed)
-                                        if button_pressed.get() == "-1":
-                                            exit()
-                                        confirmation = input_text.get("1.0", END)
-                                        input_text.delete('1.0', END)
-                                        if(confirmation != ""):
-                                            try:
-                                                confirmation = int(confirmation)
-                                                if confirmation < 0 or confirmation > len(address):
-                                                    raise ValueError
-                                                else:
-                                                    if confirmation != 0:
-                                                        output.insert(END, f"Location {confirmation} added" + "\n")
-                                                        lat_long_str = add_location(str(address[confirmation - 1].raw['lat']),
-                                                                     str(address[confirmation - 1].raw['lon']), lat_long_str)  # adds the location the user chose
-                                                    else:
-                                                        output.insert(END, "Location ignored" + "\n")
-                                                    break
+            if float(address[0].raw['importance']) < importance_benchmark:
+                continue  # checks importance level against benchmark
 
-                                            except ValueError:
-                                                output.insert(END, "Please choose a valid option" + "\n")
+            if check_bounds(bounding_box, float(address[0].raw['lat']),float(address[0].raw['lon'])):  #  if the location is in the gulf south no user confirmation necessary
+                lat_long_str = add_location(str(address[0].raw['lat']), str(address[0].raw['lon']), lat_long_str)  # if so, then add the location automatically
+                output.insert(END, "\nLocation Found: " + address[0].raw['display_name'] + "\n")
+                output.see("end")
+                continue
 
-                                            output.see("end")
-                                        else:
-                                            continue
+            # if location is not in gulf south, look for user confirmation
+            output.insert(END, "\nFor " + location + ", which location is best?" + "\n")
+            output.insert(END, str(0) + ": " + "Do not include location" + "\n")
+            for i in range(len(address)):
+                output.insert(END, str(i + 1) + ": " + address[i].raw['display_name'] + "\n")
+            output.insert(END, "Please choose an option: " + "\n")
+            output.see("end")
+
+            while True:  #asks for user input
+                confirm_button.wait_variable(button_pressed)
+                if button_pressed.get() == "-1":
+                    exit()
+                confirmation = input_text.get("1.0", END)
+                input_text.delete('1.0', END)
+                if confirmation == "":
+                    continue
+                try:
+                    confirmation = int(confirmation)
+                    if confirmation < 0 or confirmation > len(address):
+                        raise ValueError
+                    if confirmation == 0:
+                        output.insert(END, "Location ignored" + "\n")
+                    else:
+                        output.insert(END, f"Location {confirmation} added" + "\n")
+                        lat_long_str = add_location(str(address[confirmation - 1].raw['lat']),
+                                                    str(address[confirmation - 1].raw['lon']),
+                                                    lat_long_str)  # adds the location the user chose
+                    break
+
+                except ValueError:
+                    output.insert(END, "Please choose a valid option" + "\n")
+
+                output.see("end")
 
     output.insert(END, "\nLocations Added! Please check the output file")
     output.see("end")
@@ -254,6 +259,16 @@ def geolocate(geo, output, input_text, confirm_button, button_pressed):
     values_dict = {'Latitude/Longitude': lat_long_str}  # location string added to the dict that defines the csv output
     # gets item description values for omeka
     get_item_values(values_dict)
+
+
+def get_locations():
+    rows = []
+    # reads the locations names that the NER put in the csv file
+    with (open("Output/location_output.csv", 'r') as csvfile):
+        csvreader = csv.reader(csvfile)
+        for row in csvreader:
+            rows.append(row)
+    return rows
 
 
 def check_bounds(bounds, lat, lon):
@@ -277,19 +292,21 @@ def get_item_values(values_dict):
     # reads the interview transcript to fill the item values for csv import
     filelist = glob.glob("Input\\*.txt")
     for file in filelist:
-        reading = open(file, 'r', errors="ignore")
+        reading = open(file, 'r', encoding='utf-8')
         while True:
             content = reading.readline()
-            if content.strip():
-                if content.split()[0] == "AAHP":
+            if not content.strip():
+                continue
+            match content.split()[0]:
+                case "AAHP":
                     values_dict['Title'] = content.strip()
-                elif content.split()[0] == "Interview":
+                case "Interview":
                     values_dict['interviewer'] = content.strip()
-                elif content.split()[0] == "Abstract:":
+                case "Abstract:":
                     values_dict['Description'] = content.strip()
-                elif content.split()[0] == "Keywords:":
+                case "Keywords:":
                     values_dict['Table of Contents'] = content.strip()
-                elif content.split()[0] == "For":
+                case "For":
                     break
         # writes output to the csv file
         write_to_file(values_dict)
