@@ -205,11 +205,9 @@ def geolocate(geo, output, input_text, confirm_button, button_pressed):
                 continue
             if address[0].raw['addresstype'] == "state":
                 continue  # leaves out states
-            if str(address[0].raw['lat']) + '/' + str(address[0].raw['lon']) not in address_set:
-                address_set.add(str(address[0].raw['lat']) + '/' + str(address[0].raw['lon']))
-            else:
+            if str(address[0].raw['lat']) + '/' + str(address[0].raw['lon']) in address_set:
                 continue  # checks if this address has already been seen, if not add the address
-
+            address_set.add(str(address[0].raw['lat']) + '/' + str(address[0].raw['lon']))
             if float(address[0].raw['importance']) < importance_benchmark:
                 continue  # checks importance level against benchmark
 
