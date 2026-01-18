@@ -317,20 +317,20 @@ def get_item_values(values_dict):
                         if not content.strip():
                             content = reading.readline()
                             continue
-                        if content.split()[0].strip("[ ]") == "Keywords:":
+                        if content.split()[0].strip("[") == "Keywords:":
                             keywords = ""
-                            for word in content.strip("Keywords: [ ]\n").replace(',', ';').split(";"):
-                                keywords += word
+                            for word in content.strip("Keywords:").replace(',', ';').split(";"):
+                                keywords += word.strip("[ ]\n")
                                 keywords += ";"
                             keywords = keywords.strip(";")
                             values_dict['Table of Contents'] = keywords.strip()
                             break
-                        elif content.split()[0].strip("[ ]") == "Keywords":
+                        elif content.split()[0].strip("[") == "Keywords":
                             keywords = ""
-                            for word in content.strip("Keywords []").replace(',', ';').split(";"):
-                                keywords += word
+                            for word in content.strip("Keywords").replace(',', ';').split(";"):
+                                keywords += word.strip("[ ]\n")
                                 keywords += ";"
-                                keywords = keywords.strip(";")
+                            keywords = keywords.strip(";")
                             values_dict['Table of Contents'] = keywords.strip()
                             break
                         abstract += content.strip("Abstract: \n")
